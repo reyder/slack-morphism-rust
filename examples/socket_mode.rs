@@ -1,4 +1,7 @@
 use chrono::prelude::*;
+use headers::Authorization;
+use hyper_proxy2::{Intercept, Proxy, ProxyConnector};
+use hyper_util::client::legacy::connect::HttpConnector;
 use rsb_derive::Builder;
 use slack_morphism::prelude::*;
 use std::sync::Arc;
@@ -171,7 +174,33 @@ fn test_error_handler(
 }
 
 async fn test_client_with_socket_mode() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let client = Arc::new(SlackClient::new(SlackClientHyperConnector::new()?));
+    // let proxy = {
+    //     let proxy_uri = "http://my-proxy:8080".parse().unwrap();
+    //     let mut proxy = Proxy::new(Intercept::All, proxy_uri);
+    //     proxy.set_authorization(Authorization::basic("John Doe", "Agent1234"));
+    //     let connector = HttpConnector::new();
+    //     let proxy_connector = ProxyConnector::from_proxy(connector, proxy).unwrap();
+    //     proxy_connector
+    // };
+
+    let proxy = {
+        let https_connector = hyper_rustls::HttpsConnectorBuilder::new()
+            .with_native_roots()?
+            .https_only()
+            .enable_http1()
+            .build();
+
+        let proxy_uri = "http://proxy.domain.unfortunate.world.example.net:3128"
+            .parse()
+            .unwrap();
+        let proxy = Proxy::new(Intercept::Https, proxy_uri);
+        ProxyConnector::from_proxy(https_connector, proxy).unwrap()
+    };
+
+    let client = Arc::new(SlackClient::new(SlackClientHyperConnector::with_connector(
+        proxy,
+    )));
+    // let client: SlackClient<SlackClientHyperConnector<ProxyConnector<hyper_rustls::HttpsConnector<hyper_util::client::legacy::connect::HttpConnector>>>> = SlackClient::new(SlackClientHyperConnector::with_connector(proxy));
 
     let socket_mode_callbacks = SlackSocketModeListenerCallbacks::new()
         .with_command_events(test_command_events_function)

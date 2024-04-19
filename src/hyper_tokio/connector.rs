@@ -8,17 +8,20 @@ use futures::future::{BoxFuture, FutureExt};
 use http_body_util::{BodyExt, Empty, Full};
 use hyper::http::StatusCode;
 use hyper::Request;
+use hyper_proxy2::{Intercept, Proxy, ProxyConnector};
 use hyper_rustls::HttpsConnector;
-use hyper_util::client::legacy::*;
-use hyper_util::rt::TokioExecutor;
-use rvstruct::ValueStruct;
-
+// use hyper_rustls::HttpsConnector;
 use crate::hyper_tokio::multipart_form::{
     create_multipart_file_content, generate_multipart_boundary,
 };
 use crate::multipart_form::FileMultipartData;
 use crate::prelude::hyper_ext::HyperExtensions;
 use crate::ratectl::SlackApiRateControlConfig;
+use headers::Authorization;
+use hyper_util::client::legacy::connect::HttpConnector;
+use hyper_util::client::legacy::*;
+use hyper_util::rt::TokioExecutor;
+use rvstruct::ValueStruct;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::sync::Arc;
@@ -34,26 +37,71 @@ pub struct SlackClientHyperConnector<H: Send + Sync + Clone + connect::Connect> 
 }
 
 pub type SlackClientHyperHttpsConnector =
-    SlackClientHyperConnector<HttpsConnector<connect::HttpConnector>>;
+    SlackClientHyperConnector<ProxyConnector<HttpsConnector<connect::HttpConnector>>>;
 
-impl SlackClientHyperConnector<HttpsConnector<connect::HttpConnector>> {
-    pub fn new() -> std::io::Result<Self> {
+// pub type SlackClientHyperProxyConnector =
+//     SlackClientHyperConnector<ProxyConnector<connect::HttpConnector>>;
+
+// impl SlackClientHyperConnector<HttpsConnector<connect::HttpConnector>> {
+//     pub fn new() -> std::io::Result<Self> {
+//         let https_connector = hyper_rustls::HttpsConnectorBuilder::new()
+//             .with_native_roots()?
+//             .https_only()
+//             .enable_http2()
+//             .build();
+//         Ok(Self::with_connector(https_connector))
+//     }
+// }
+
+impl SlackClientHyperConnector<ProxyConnector<HttpsConnector<connect::HttpConnector>>> {
+    pub fn new(url: String, username: String, password: String) -> std::io::Result<Self> {
+        // let proxy = {
+        //     let proxy_uri = url.parse().unwrap();
+        //     let mut proxy = Proxy::new(Intercept::All, proxy_uri);
+        //     proxy.set_authorization(Authorization::basic(&username, &password));
+        //     let connector = HttpConnector::new();
+        //     let proxy_connector = ProxyConnector::from_proxy(connector, proxy).unwrap();
+        //     proxy_connector
+        // };
+
         let https_connector = hyper_rustls::HttpsConnectorBuilder::new()
             .with_native_roots()?
             .https_only()
-            .enable_http2()
+            .enable_http1()
             .build();
-        Ok(Self::with_connector(https_connector))
+
+        let proxy_uri = "http://proxy.domain.unfortunate.world.example.net:3128"
+            .parse()
+            .unwrap();
+        let proxy = Proxy::new(Intercept::Https, proxy_uri);
+        // proxy = ProxyConnector::from_proxy(https_connector, proxy).unwrap()
+
+        // let https_connector = hyper_rustls::HttpsConnectorBuilder::new()
+        //     .with_native_roots()?
+        //     .https_only()
+        //     .enable_http2()
+        //     .build();
+        Ok(Self::with_connector(
+            ProxyConnector::from_proxy(https_connector, proxy).unwrap(),
+        ))
     }
 }
 
-impl From<HttpsConnector<connect::HttpConnector>>
-    for SlackClientHyperConnector<HttpsConnector<connect::HttpConnector>>
+impl From<ProxyConnector<HttpsConnector<connect::HttpConnector>>>
+    for SlackClientHyperConnector<ProxyConnector<HttpsConnector<connect::HttpConnector>>>
 {
-    fn from(https_connector: HttpsConnector<connect::HttpConnector>) -> Self {
+    fn from(https_connector: ProxyConnector<HttpsConnector<connect::HttpConnector>>) -> Self {
         Self::with_connector(https_connector)
     }
 }
+
+// impl From<HttpsConnector<connect::HttpConnector>>
+//     for SlackClientHyperConnector<HttpsConnector<connect::HttpConnector>>
+// {
+//     fn from(https_connector: HttpsConnector<connect::HttpConnector>) -> Self {
+//         Self::with_connector(https_connector)
+//     }
+// }
 
 impl<H: 'static + Send + Sync + Clone + connect::Connect> SlackClientHyperConnector<H> {
     pub fn with_connector(connector: H) -> Self {

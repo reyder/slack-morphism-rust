@@ -8,6 +8,15 @@ pub struct SlackClientSocketModeConfig {
     #[default = "SlackClientSocketModeConfig::DEFAULT_DEBUG_CONNECTIONS"]
     pub debug_connections: bool,
 
+    #[default = "SlackClientSocketModeConfig::DEFAULT_PROXY_PARMS"]
+    pub proxy_url: Option<String>,
+
+    #[default = "SlackClientSocketModeConfig::DEFAULT_PROXY_PARMS"]
+    pub proxy_username: Option<String>,
+
+    #[default = "SlackClientSocketModeConfig::DEFAULT_PROXY_PARMS"]
+    pub proxy_password: Option<String>,
+
     #[default = "SlackClientSocketModeConfig::DEFAULT_INITIAL_BACKOFF_IN_SECONDS"]
     pub initial_backoff_in_seconds: u64,
 
@@ -25,6 +34,8 @@ impl SlackClientSocketModeConfig {
     pub const DEFAULT_CONNECTIONS_COUNT: u32 = 2;
 
     pub const DEFAULT_DEBUG_CONNECTIONS: bool = false;
+
+    pub const DEFAULT_PROXY_PARMS: Option<String> = None;
 
     pub const DEFAULT_INITIAL_BACKOFF_IN_SECONDS: u64 = 5;
 
