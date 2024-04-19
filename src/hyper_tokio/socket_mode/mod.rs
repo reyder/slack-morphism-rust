@@ -5,6 +5,7 @@ use crate::listener::SlackClientEventsListenerEnvironment;
 use hyper_util::client::legacy::connect::Connect;
 use std::sync::Arc;
 
+mod inner_proxy;
 mod tokio_clients_manager;
 mod tungstenite_wss_client;
 

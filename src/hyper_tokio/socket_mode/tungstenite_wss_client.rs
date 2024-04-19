@@ -1,9 +1,11 @@
 use crate::api::SlackApiAppsConnectionOpenRequest;
 use crate::errors::*;
+use crate::hyper_tokio::socket_mode::inner_proxy::InnerProxy;
 use crate::listener::SlackClientEventsListenerEnvironment;
 use crate::*;
 use futures::{SinkExt, StreamExt};
 use rvstruct::*;
+use std::env;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -13,6 +15,9 @@ use tokio::sync::RwLock;
 use tokio_tungstenite::tungstenite::Utf8Bytes;
 use tokio_tungstenite::*;
 use tracing::*;
+use url::Url;
+
+use super::inner_proxy::ProxyStream;
 
 #[derive(Clone)]
 pub struct SlackTungsteniteWssClientIdentity {
@@ -77,7 +82,7 @@ where
     async fn try_to_connect(
         identity: &SlackTungsteniteWssClientIdentity,
         listener_environment: Arc<SlackClientEventsListenerEnvironment<SCHC>>,
-    ) -> Option<WebSocketStream<MaybeTlsStream<TcpStream>>> {
+    ) -> Option<WebSocketStream<MaybeTlsStream<ProxyStream>>> {
         let session = listener_environment.client.open_session(&identity.token);
 
         trace!(
@@ -104,7 +109,44 @@ where
 
                 let url_to_connect = open_connection_res_url.value().to_string();
 
-                match connect_async(&url_to_connect).await {
+                // if identity.config.proxy_stream {
+                // To be moved as options
+                // TESTING
+                // let proxy_username = match env::var_os("SLACK_PROXY_USERNAME") {
+                //     Some(v) => v.into_string().unwrap(),
+                //     None => panic!("$SLACK_PROXY_USERNAME is not set")
+                // };
+                // let proxy_password = match env::var_os("SLACK_PROXY_PASSWORD") {
+                //     Some(v) => v.into_string().unwrap(),
+                //     None => panic!("$SLACK_PROXY_PASSWORD is not set")
+                // };
+                // let proxy_address = match env::var_os("SLACK_PROXY_URL") {
+                //     Some(v) => v.into_string().unwrap(),
+                //     None => panic!("$SLACK_PROXY_URL is not set")
+                // };
+
+                let proxy_address = identity.config.proxy_url.clone().unwrap();
+                let proxy_username = identity.config.proxy_username.clone().unwrap();
+                let proxy_password = identity.config.proxy_password.clone().unwrap();
+
+                let mut proxy_url = match Url::parse(&proxy_address) {
+                    Ok(u) => u,
+                    Err(e) => panic!("Wrong proxy url"),
+                };
+                proxy_url.set_username(&proxy_username);
+                proxy_url.set_password(Some(&proxy_password));
+
+                let proxy = InnerProxy::from_proxy_str(proxy_url.as_str())
+                    .expect("failed to parse inner proxy");
+                let mut tcp_stream = proxy
+                    .connect_async(&url_to_connect)
+                    .await
+                    .unwrap_or_else(|e| panic!("failed to create proxy stream: {}", e));
+
+                // let (mut stream, resp) = match client_async_tls(
+                //     url_to_connect, tcp_stream).await {
+
+                match client_async_tls(&url_to_connect, tcp_stream).await {
                     Ok((_, response))
                         if !response.status().is_success()
                             && !response.status().is_informational() =>
@@ -117,7 +159,7 @@ where
                             response.status()
                         );
 
-                        None
+                        return None;
                     }
                     Err(err) => {
                         error!(
@@ -128,7 +170,7 @@ where
                             err
                         );
 
-                        None
+                        return None;
                     }
                     Ok((wss_stream, _)) => {
                         debug!(
@@ -140,6 +182,44 @@ where
                         Some(wss_stream)
                     }
                 }
+                // }
+                // } else {
+                // match connect_async(&url_to_connect).await {
+                //     Ok((_, response))
+                //         if !response.status().is_success()
+                //             && !response.status().is_informational() =>
+                //     {
+                //         error!(
+                //             slack_wss_client_id = identity.id.to_string().as_str(),
+                //             "[{}] Unable to connect {}: {}",
+                //             identity.id.to_string(),
+                //             url_to_connect,
+                //             response.status()
+                //         );
+
+                //         None
+                //     }
+                //     Err(err) => {
+                //         error!(
+                //             slack_wss_client_id = identity.id.to_string().as_str(),
+                //             "[{}] Unable to connect {}: {:?}",
+                //             identity.id.to_string(),
+                //             url_to_connect,
+                //             err
+                //         );
+
+                //         None
+                //     }
+                //     Ok((wss_stream, _)) => {
+                //         debug!(
+                //             slack_wss_client_id = identity.id.to_string().as_str(),
+                //             "[{}] Connected to {}",
+                //             identity.id.to_string(),
+                //             url_to_connect
+                //         );
+                //         Some(wss_stream)
+                //     }
+                // }}
             }
             Err(err) => {
                 error!(
@@ -156,7 +236,7 @@ where
         identity: &SlackTungsteniteWssClientIdentity,
         listener_environment: Arc<SlackClientEventsListenerEnvironment<SCHC>>,
         destroyed: Arc<AtomicBool>,
-    ) -> ClientResult<WebSocketStream<MaybeTlsStream<TcpStream>>> {
+    ) -> ClientResult<WebSocketStream<MaybeTlsStream<ProxyStream>>> {
         let mut maybe_stream = Self::try_to_connect(identity, listener_environment.clone()).await;
         loop {
             if let Some(wss_stream) = maybe_stream {
