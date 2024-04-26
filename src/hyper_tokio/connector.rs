@@ -9,6 +9,7 @@ use http_body_util::{BodyExt, Empty, Full};
 use hyper::http::StatusCode;
 use hyper::Request;
 use hyper_proxy2::{Intercept, Proxy, ProxyConnector};
+use hyper_rustls::HttpsConnector;
 // use hyper_rustls::HttpsConnector;
 use crate::hyper_tokio::multipart_form::{
     create_multipart_file_content, generate_multipart_boundary,
@@ -36,7 +37,7 @@ pub struct SlackClientHyperConnector<H: Send + Sync + Clone + connect::Connect> 
 }
 
 pub type SlackClientHyperHttpsConnector =
-    SlackClientHyperConnector<ProxyConnector<connect::HttpConnector>>;
+    SlackClientHyperConnector<ProxyConnector<HttpsConnector<connect::HttpConnector>>>;
 
 // pub type SlackClientHyperProxyConnector =
 //     SlackClientHyperConnector<ProxyConnector<connect::HttpConnector>>;
@@ -52,30 +53,43 @@ pub type SlackClientHyperHttpsConnector =
 //     }
 // }
 
-impl SlackClientHyperConnector<ProxyConnector<connect::HttpConnector>> {
+impl SlackClientHyperConnector<ProxyConnector<HttpsConnector<connect::HttpConnector>>> {
     pub fn new(url: String, username: String, password: String) -> std::io::Result<Self> {
-        let proxy = {
-            let proxy_uri = url.parse().unwrap();
-            let mut proxy = Proxy::new(Intercept::All, proxy_uri);
-            proxy.set_authorization(Authorization::basic(&username, &password));
-            let connector = HttpConnector::new();
-            let proxy_connector = ProxyConnector::from_proxy(connector, proxy).unwrap();
-            proxy_connector
-        };
+        // let proxy = {
+        //     let proxy_uri = url.parse().unwrap();
+        //     let mut proxy = Proxy::new(Intercept::All, proxy_uri);
+        //     proxy.set_authorization(Authorization::basic(&username, &password));
+        //     let connector = HttpConnector::new();
+        //     let proxy_connector = ProxyConnector::from_proxy(connector, proxy).unwrap();
+        //     proxy_connector
+        // };
+
+        let https_connector = hyper_rustls::HttpsConnectorBuilder::new()
+        .with_native_roots()?
+        .https_only()
+        .enable_http1()
+        .build();
+
+    let proxy_uri = "http://proxy.domain.unfortunate.world.example.net:3128"
+        .parse()
+        .unwrap();
+    let proxy = Proxy::new(Intercept::Https, proxy_uri);
+    // proxy = ProxyConnector::from_proxy(https_connector, proxy).unwrap()
+
 
         // let https_connector = hyper_rustls::HttpsConnectorBuilder::new()
         //     .with_native_roots()?
         //     .https_only()
         //     .enable_http2()
         //     .build();
-        Ok(Self::with_connector(proxy))
+        Ok(Self::with_connector(ProxyConnector::from_proxy(https_connector, proxy).unwrap()))
     }
 }
 
-impl From<ProxyConnector<connect::HttpConnector>>
-    for SlackClientHyperConnector<ProxyConnector<connect::HttpConnector>>
+impl From<ProxyConnector<HttpsConnector<connect::HttpConnector>>>
+    for SlackClientHyperConnector<ProxyConnector<HttpsConnector<connect::HttpConnector>>>
 {
-    fn from(https_connector: ProxyConnector<connect::HttpConnector>) -> Self {
+    fn from(https_connector: ProxyConnector<HttpsConnector<connect::HttpConnector>>) -> Self {
         Self::with_connector(https_connector)
     }
 }
