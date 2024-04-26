@@ -10,17 +10,17 @@ use hyper::http::StatusCode;
 use hyper::Request;
 use hyper_proxy2::{Intercept, Proxy, ProxyConnector};
 // use hyper_rustls::HttpsConnector;
-use hyper_util::client::legacy::connect::HttpConnector;
-use hyper_util::client::legacy::*;
-use hyper_util::rt::TokioExecutor;
-use rvstruct::ValueStruct;
-use headers::Authorization;
 use crate::hyper_tokio::multipart_form::{
     create_multipart_file_content, generate_multipart_boundary,
 };
 use crate::multipart_form::FileMultipartData;
 use crate::prelude::hyper_ext::HyperExtensions;
 use crate::ratectl::SlackApiRateControlConfig;
+use headers::Authorization;
+use hyper_util::client::legacy::connect::HttpConnector;
+use hyper_util::client::legacy::*;
+use hyper_util::rt::TokioExecutor;
+use rvstruct::ValueStruct;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::sync::Arc;
@@ -61,8 +61,8 @@ impl SlackClientHyperConnector<ProxyConnector<connect::HttpConnector>> {
             let connector = HttpConnector::new();
             let proxy_connector = ProxyConnector::from_proxy(connector, proxy).unwrap();
             proxy_connector
-         };
-      
+        };
+
         // let https_connector = hyper_rustls::HttpsConnectorBuilder::new()
         //     .with_native_roots()?
         //     .https_only()

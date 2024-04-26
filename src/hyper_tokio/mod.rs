@@ -7,9 +7,9 @@
 pub use crate::hyper_tokio::connector::SlackClientHyperConnector;
 pub use crate::hyper_tokio::connector::SlackClientHyperHttpsConnector;
 use crate::SlackClient;
-use std::convert::Infallible;
-use hyper_proxy2::ProxyConnector;
 use crate::*;
+use hyper_proxy2::ProxyConnector;
+use std::convert::Infallible;
 
 pub mod connector;
 pub mod hyper_errors;
@@ -31,6 +31,6 @@ pub type SlackHyperListenerEnvironment =
     SlackClientEventsListenerEnvironment<SlackClientHyperHttpsConnector>;
 
 pub type SlackHyperHttpsConnector =
-ProxyConnector<hyper_util::client::legacy::connect::HttpConnector>;
+    ProxyConnector<hyper_util::client::legacy::connect::HttpConnector>;
 
 pub(crate) type Body = http_body_util::combinators::BoxBody<bytes::Bytes, Infallible>;
