@@ -59,6 +59,9 @@ tokio-tungstenite = { version = "0.21.0", features = ["rustls-tls-native-roots"]
 axum = { version = "0.7", optional = true }
 tower = { version = "0.4", optional = true }
 tokio-socks = { version = "0.5.1", optional = false }
+tokio-rustls = { version = "0.26.0", optional = false }
+hyper-proxy2 = { version = "0.1.0", optional = false }
+headers = "0.4.0"
 
 [target.'cfg(not(windows))'.dependencies]
 signal-hook = { version = "0.3", default-features = false, features = ["extended-siginfo"], optional = true }
