@@ -174,13 +174,28 @@ fn test_error_handler(
 }
 
 async fn test_client_with_socket_mode() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    // let proxy = {
+    //     let proxy_uri = "http://my-proxy:8080".parse().unwrap();
+    //     let mut proxy = Proxy::new(Intercept::All, proxy_uri);
+    //     proxy.set_authorization(Authorization::basic("John Doe", "Agent1234"));
+    //     let connector = HttpConnector::new();
+    //     let proxy_connector = ProxyConnector::from_proxy(connector, proxy).unwrap();
+    //     proxy_connector
+    // };
+
+
     let proxy = {
-        let proxy_uri = "http://my-proxy:8080".parse().unwrap();
-        let mut proxy = Proxy::new(Intercept::All, proxy_uri);
-        proxy.set_authorization(Authorization::basic("John Doe", "Agent1234"));
-        let connector = HttpConnector::new();
-        let proxy_connector = ProxyConnector::from_proxy(connector, proxy).unwrap();
-        proxy_connector
+        let https_connector = hyper_rustls::HttpsConnectorBuilder::new()
+            .with_native_roots()?
+            .https_only()
+            .enable_http1()
+            .build();
+
+        let proxy_uri = "http://proxy.domain.unfortunate.world.example.net:3128"
+            .parse()
+            .unwrap();
+        let proxy = Proxy::new(Intercept::Https, proxy_uri);
+        ProxyConnector::from_proxy(https_connector, proxy).unwrap()
     };
 
     let client = Arc::new(SlackClient::new(SlackClientHyperConnector::with_connector(
