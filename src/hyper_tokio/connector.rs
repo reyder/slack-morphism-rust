@@ -65,24 +65,25 @@ impl SlackClientHyperConnector<ProxyConnector<HttpsConnector<connect::HttpConnec
         // };
 
         let https_connector = hyper_rustls::HttpsConnectorBuilder::new()
-        .with_native_roots()?
-        .https_only()
-        .enable_http1()
-        .build();
+            .with_native_roots()?
+            .https_only()
+            .enable_http1()
+            .build();
 
-    let proxy_uri = "http://proxy.domain.unfortunate.world.example.net:3128"
-        .parse()
-        .unwrap();
-    let proxy = Proxy::new(Intercept::Https, proxy_uri);
-    // proxy = ProxyConnector::from_proxy(https_connector, proxy).unwrap()
-
+        let proxy_uri = "http://proxy.domain.unfortunate.world.example.net:3128"
+            .parse()
+            .unwrap();
+        let proxy = Proxy::new(Intercept::Https, proxy_uri);
+        // proxy = ProxyConnector::from_proxy(https_connector, proxy).unwrap()
 
         // let https_connector = hyper_rustls::HttpsConnectorBuilder::new()
         //     .with_native_roots()?
         //     .https_only()
         //     .enable_http2()
         //     .build();
-        Ok(Self::with_connector(ProxyConnector::from_proxy(https_connector, proxy).unwrap()))
+        Ok(Self::with_connector(
+            ProxyConnector::from_proxy(https_connector, proxy).unwrap(),
+        ))
     }
 }
 
