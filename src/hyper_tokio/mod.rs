@@ -32,7 +32,6 @@ pub type SlackHyperClient = SlackClient<SlackClientHyperHttpsConnector>;
 pub type SlackHyperListenerEnvironment =
     SlackClientEventsListenerEnvironment<SlackClientHyperHttpsConnector>;
 
-pub type SlackHyperHttpsConnector =
-    ProxyConnector<HttpsConnector<HttpConnector>>;
+pub type SlackHyperHttpsConnector = ProxyConnector<HttpsConnector<HttpConnector>>;
 
 pub(crate) type Body = http_body_util::combinators::BoxBody<bytes::Bytes, Infallible>;

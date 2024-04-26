@@ -183,7 +183,6 @@ async fn test_client_with_socket_mode() -> Result<(), Box<dyn std::error::Error 
     //     proxy_connector
     // };
 
-
     let proxy = {
         let https_connector = hyper_rustls::HttpsConnectorBuilder::new()
             .with_native_roots()?
